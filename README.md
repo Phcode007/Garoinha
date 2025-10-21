@@ -173,7 +173,7 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 ## 📞 Contato
 
-Criado por [Seu Nome] - [seu-email@exemplo.com]
+Criado por Paulo Henrique Belarmino - [phcv2002@gmail.com]
 
 ---
 
