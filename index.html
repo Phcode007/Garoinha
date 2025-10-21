@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Garoinha - Previsão do Tempo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <div class="logo-icon">☁️</div>
+        <h1>Garoinha</h1>
+        <p>Previsão leve e certeira</p>
+      </div>
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="cityInput"
+          placeholder="Digite o nome da cidade..."
+        />
+        <button id="searchBtn">🔍</button>
+      </div>
+
+      <div class="error" id="errorMsg"></div>
+
+      <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <p>Buscando dados do clima...</p>
+      </div>
+
+      <div class="welcome-message" id="welcomeMsg">
+        <h3>Bem-vindo ao Garoinha! 🌧️</h3>
+        <p>Digite o nome de uma cidade para ver a previsão do tempo</p>
+      </div>
+
+      <div class="weather-info" id="weatherInfo">
+        <div class="location">
+          <h2 id="cityName"></h2>
+          <p id="country"></p>
+        </div>
+
+        <div class="current-weather">
+          <div class="weather-icon" id="weatherIcon"></div>
+          <div class="weather-description" id="weatherDesc"></div>
+          <div class="temperature" id="temperature"></div>
+        </div>
+
+        <div class="weather-details">
+          <div class="detail-card">
+            <div class="icon">💨</div>
+            <div class="label">Vento</div>
+            <div class="value" id="windSpeed"></div>
+          </div>
+          <div class="detail-card">
+            <div class="icon">💧</div>
+            <div class="label">Umidade</div>
+            <div class="value" id="humidity"></div>
+          </div>
+          <div class="detail-card">
+            <div class="icon">🌡️</div>
+            <div class="label">Sensação</div>
+            <div class="value" id="feelsLike"></div>
+          </div>
+          <div class="detail-card">
+            <div class="icon">🧭</div>
+            <div class="label">Direção</div>
+            <div class="value" id="windDirection"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="config/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
