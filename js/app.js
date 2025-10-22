@@ -8,6 +8,8 @@ const app = {
     this.setupEventListeners();
     ui.init();
     this.loadLastSearch();
+    this.registerServiceWorker();
+    this.setupOfflineDetection();
     console.log("🌧️ Garoinha iniciado com sucesso!");
   },
 
@@ -131,6 +133,9 @@ const app = {
         ui.showError("CITY_NOT_FOUND");
       } else if (error.message === "TIMEOUT_ERROR") {
         ui.showError("A requisição demorou muito. Tente novamente.");
+      } else if (error.message === "OFFLINE_ERROR") {
+        ui.showError("OFFLINE_MESSAGE");
+        utils.showOfflineNotification();
       } else {
         ui.showError("CONNECTION_ERROR");
       }
@@ -196,13 +201,162 @@ const app = {
   },
 
   /**
+   * Registra o Service Worker
+   */
+  async registerServiceWorker() {
+    if (!utils.supportsServiceWorker()) {
+      console.log("Service Worker não suportado");
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      console.log("Service Worker registrado com sucesso:", registration);
+
+      // Verificar se há uma nova versão disponível
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        console.log("Nova versão do Service Worker encontrada:", newWorker);
+
+        newWorker.addEventListener("statechange", () => {
+          if (
+            newWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
+            console.log(
+              "Nova versão pronta. Recarregue a página para atualizar."
+            );
+            this.showUpdateNotification();
+          }
+        });
+      });
+
+      // Lidar com mensagens do Service Worker
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "CACHE_READY") {
+          console.log("Cache do Service Worker pronto");
+        }
+      });
+    } catch (error) {
+      console.error("Falha ao registrar Service Worker:", error);
+    }
+  },
+
+  /**
+   * Mostra notificação de atualização
+   */
+  showUpdateNotification() {
+    const notification = document.createElement("div");
+    notification.className = "update-notification";
+    notification.innerHTML = `
+      <div class="notification-content">
+        <span class="notification-icon">🔄</span>
+        <span class="notification-text">Nova versão disponível!</span>
+        <button class="update-btn" onclick="window.location.reload()">Atualizar</button>
+      </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Estilos inline para a notificação
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #4CAF50;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    notification.querySelector(".notification-content").style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    `;
+
+    notification.querySelector(".update-btn").style.cssText = `
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+  },
+
+  /**
+   * Configura detecção de status offline/online
+   */
+  setupOfflineDetection() {
+    window.addEventListener("online", () => {
+      console.log("Aplicação online");
+      this.hideOfflineIndicator();
+    });
+
+    window.addEventListener("offline", () => {
+      console.log("Aplicação offline");
+      this.showOfflineIndicator();
+      utils.showOfflineNotification();
+    });
+
+    // Verificar status inicial
+    if (!utils.isOnline()) {
+      this.showOfflineIndicator();
+    }
+  },
+
+  /**
+   * Mostra indicador offline
+   */
+  showOfflineIndicator() {
+    let indicator = document.getElementById("offlineIndicator");
+
+    if (!indicator) {
+      indicator = document.createElement("div");
+      indicator.id = "offlineIndicator";
+      indicator.innerHTML = "📶 Offline";
+      indicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: #ff6b6b;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 12px;
+        z-index: 10000;
+      `;
+      document.body.appendChild(indicator);
+    }
+  },
+
+  /**
+   * Esconde indicador offline
+   */
+  hideOfflineIndicator() {
+    const indicator = document.getElementById("offlineIndicator");
+    if (indicator) {
+      indicator.remove();
+    }
+  },
+
+  /**
    * Limpa cache e histórico (útil para debug)
    */
   clearAllData() {
     api.clearCache();
     utils.clearRecentCities();
+    utils.clearOfflineData();
     localStorage.removeItem(CONFIG.STORAGE.LAST_SEARCH);
     console.log("Todos os dados foram limpos");
+
+    // Recarregar a página
+    window.location.reload();
   },
 };
 
@@ -215,5 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
 window.garoinha = {
   clearData: () => app.clearAllData(),
   getByLocation: () => app.getWeatherByLocation(),
-  version: "1.0.0",
+  cacheStats: () => api.getCacheStats(),
+  offlineData: () => utils.getOfflineData(),
+  version: "1.2.0",
 };

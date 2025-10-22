@@ -11,7 +11,7 @@ const CONFIG = {
   DEFAULTS: {
     LANGUAGE: "pt",
     TIMEZONE: "auto",
-    RESULTS_COUNT: 5, // Aumentado para autocomplete
+    RESULTS_COUNT: 5,
     MAX_RECENT_CITIES: 5,
   },
 
@@ -20,7 +20,13 @@ const CONFIG = {
     RECENT_CITIES: "garoinha_recent_cities",
     FAVORITE_CITY: "garoinha_favorite_city",
     LAST_SEARCH: "garoinha_last_search",
+    FAVORITE_CITIES: "garoinha_favorite_cities",
+    THEME: "garoinha_theme",
   },
+
+  // Parâmetros para previsão diária
+  DAILY_PARAMS:
+    "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability",
 
   // Códigos de clima do Open-Meteo
   WEATHER_CODES: {
@@ -59,6 +65,23 @@ const CONFIG = {
     WELCOME_TEXT: "Digite o nome de uma cidade para ver a previsão do tempo",
     EMPTY_INPUT: "Por favor, digite o nome de uma cidade.",
     LOADING_SUGGESTIONS: "Buscando sugestões...",
+    OFFLINE_MESSAGE: "Você está offline. Dados podem não estar atualizados.",
+  },
+
+  // Configurações de tema
+  THEME: {
+    LIGHT: {
+      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      cardBg: "rgba(255, 255, 255, 0.95)",
+      text: "#333",
+      secondaryText: "#666",
+    },
+    DARK: {
+      background: "linear-gradient(135deg, #2c3e50 0%, #3498db 100%)",
+      cardBg: "rgba(30, 30, 30, 0.95)",
+      text: "#fff",
+      secondaryText: "#bbb",
+    },
   },
 
   // Timeout para requisições (ms)

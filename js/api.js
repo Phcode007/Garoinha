@@ -161,7 +161,7 @@ const api = {
    * @param {number} days - Número de dias (padrão: 7)
    * @returns {Promise<object>} Dados de previsão
    */
-  async fetchForecast(latitude, longitude, days = 7) {
+  async fetchWeeklyForecast(latitude, longitude, days = 7) {
     const cacheKey = `forecast_${latitude}_${longitude}_${days}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
@@ -169,8 +169,7 @@ const api = {
     const params = new URLSearchParams({
       latitude: latitude,
       longitude: longitude,
-      daily:
-        "temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum",
+      daily: CONFIG.DAILY_PARAMS,
       timezone: CONFIG.DEFAULTS.TIMEZONE,
       forecast_days: days,
     });
@@ -194,8 +193,14 @@ const api = {
       // Buscar coordenadas da cidade
       const location = await this.fetchCityCoordinates(cityName);
 
-      // Buscar dados meteorológicos
+      // Buscar dados meteorológicos atuais
       const weather = await this.fetchWeatherData(
+        location.latitude,
+        location.longitude
+      );
+
+      // Buscar previsão semanal
+      const forecast = await this.fetchWeeklyForecast(
         location.latitude,
         location.longitude
       );
@@ -216,6 +221,7 @@ const api = {
         precipitation: weather.precipitation || 0,
         pressure: weather.pressure_msl || 0,
         cloudCover: weather.cloud_cover || 0,
+        weeklyForecast: forecast,
       };
     } catch (error) {
       if (error.message === "CITY_NOT_FOUND") {
