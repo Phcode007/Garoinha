@@ -1,160 +1,136 @@
-// Lógica principal e inicialização do aplicativo
-class GaroinhaApp {
-  constructor() {
-    this.ui = window.weatherUI;
-    this.api = window.weatherAPI;
-    this.history = this.getHistory();
-    this.init();
-  }
+// ========================================
+// LÓGICA PRINCIPAL E INICIALIZAÇÃO
+// ========================================
 
+const App = {
+  /**
+   * Inicializa aplicativo
+   */
   init() {
-    console.log("🌧️ Garoinha inicializado - Versão 1.0.0");
+    Utils.log(`${CONFIG.APP_NAME} v${CONFIG.VERSION} inicializado`);
 
-    // Carregar última busca se disponível
+    // Inicializa UI
+    UI.init();
+
+    // Carrega última busca
     this.loadLastSearch();
 
-    // Expor funções globais para debug
-    this.exposeToGlobal();
-  }
+    // Expõe API global
+    this.exposeGlobalAPI();
+  },
 
-  // ========== SEARCH ==========
-  async searchWeather(query) {
-    if (!query) return;
-
+  /**
+   * Busca clima por nome da cidade
+   * @param {string} cityName - Nome da cidade
+   */
+  async searchWeather(cityName) {
     try {
-      this.ui.showLoading();
+      UI.showLoading();
 
-      // Buscar coordenadas da cidade
-      const cities = await this.api.searchCities(query);
-      if (cities.length === 0) {
-        this.ui.showError();
-        return;
+      const data = await API.getWeatherByCity(cityName);
+
+      UI.showWeather(data);
+      Storage.addToHistory(data.city.name, data.city.country);
+      Storage.saveLastSearch(data.city.name);
+
+      Utils.log("Clima carregado:", data.city.name);
+    } catch (error) {
+      Utils.error("Erro ao buscar clima:", error);
+      UI.showError(Utils.getErrorMessage(error));
+    }
+  },
+
+  /**
+   * Busca clima por objeto cidade (do autocomplete)
+   * @param {Object} city - Objeto cidade
+   */
+  async searchWeatherByCity(city) {
+    try {
+      UI.showLoading();
+
+      const data = await API.getWeatherByCityObject(city);
+
+      UI.showWeather(data);
+      Storage.addToHistory(data.city.name, data.city.country);
+      Storage.saveLastSearch(data.city.name);
+
+      Utils.log("Clima carregado:", data.city.name);
+    } catch (error) {
+      Utils.error("Erro ao buscar clima:", error);
+      UI.showError(Utils.getErrorMessage(error));
+    }
+  },
+
+  /**
+   * Busca clima pela geolocalização
+   */
+  async searchByGeolocation() {
+    try {
+      UI.showLoading();
+
+      const data = await API.getWeatherByGeolocation();
+
+      UI.showWeather(data);
+      Storage.addToHistory(data.city.name, data.city.country);
+
+      Utils.log("Clima da localização atual carregado");
+    } catch (error) {
+      Utils.error("Erro ao buscar por geolocalização:", error);
+
+      if (error.message === "GEOLOCATION_ERROR") {
+        UI.showError(ERROR_MESSAGES.GEOLOCATION_ERROR);
+      } else if (error.message === "Geolocalização não suportada") {
+        UI.showError(ERROR_MESSAGES.GEOLOCATION_DENIED);
+      } else {
+        UI.showError(Utils.getErrorMessage(error));
       }
-
-      // Usar primeira sugestão
-      const city = cities[0];
-      await this.searchWeatherByCoords(
-        city.latitude,
-        city.longitude,
-        city.name
-      );
-    } catch (error) {
-      console.error("❌ Erro na busca:", error);
-      this.ui.showError();
     }
-  }
+  },
 
-  async searchWeatherByCoords(lat, lon, cityName) {
-    try {
-      this.ui.showLoading();
-
-      const weatherData = await this.api.getWeatherData(lat, lon, cityName);
-
-      // Atualizar UI
-      this.ui.showWeather(weatherData);
-
-      // Salvar no histórico
-      this.saveToHistory(weatherData);
-
-      // Salvar como última busca
-      this.saveLastSearch(weatherData);
-    } catch (error) {
-      console.error("❌ Erro ao buscar clima:", error);
-      this.ui.showError();
-    }
-  }
-
-  // ========== HISTORY ==========
-  getHistory() {
-    const history = localStorage.getItem(CONFIG.HISTORY.KEY);
-    return history ? JSON.parse(history) : [];
-  }
-
-  saveToHistory(weatherData) {
-    // Remover se já existir
-    this.history = this.history.filter(
-      (item) => item.city !== weatherData.city
-    );
-
-    // Adicionar no início
-    this.history.unshift({
-      city: weatherData.city,
-      timestamp: Date.now(),
-    });
-
-    // Manter apenas os últimos X itens
-    this.history = this.history.slice(0, CONFIG.HISTORY.MAX_ITEMS);
-
-    // Salvar
-    localStorage.setItem(CONFIG.HISTORY.KEY, JSON.stringify(this.history));
-  }
-
-  // ========== LAST SEARCH ==========
-  saveLastSearch(weatherData) {
-    const lastSearch = {
-      ...weatherData,
-      savedAt: Date.now(),
-    };
-    localStorage.setItem("garoinha_last_search", JSON.stringify(lastSearch));
-  }
-
+  /**
+   * Carrega última busca salva
+   */
   loadLastSearch() {
-    const lastSearch = localStorage.getItem("garoinha_last_search");
-    if (!lastSearch) return;
+    const lastCity = Storage.getLastSearch();
 
-    const data = JSON.parse(lastSearch);
-    const isRecent = Date.now() - data.savedAt < 24 * 60 * 60 * 1000; // 24 horas
-
-    if (isRecent) {
-      this.ui.showWeather(data);
+    if (lastCity) {
+      Utils.log("Carregando última busca:", lastCity);
+      this.searchWeather(lastCity);
     }
-  }
+  },
 
-  // ========== UTILITIES ==========
-  clearData() {
-    this.api.clearCache();
-    this.history = [];
-    localStorage.removeItem(CONFIG.HISTORY.KEY);
-    localStorage.removeItem("garoinha_last_search");
-    console.log("✅ Todos os dados limpos");
-  }
+  /**
+   * Limpa todos os dados salvos
+   */
+  clearAllData() {
+    Storage.clearAll();
+    UI.hideAll();
+    UI.elements.cityInput.value = "";
+    Utils.log("Todos os dados foram limpos");
+  },
 
-  exposeToGlobal() {
+  /**
+   * Expõe API global para debug
+   */
+  exposeGlobalAPI() {
     window.garoinha = {
-      searchWeather: (query) => this.searchWeather(query),
-      searchWeatherByCoords: (lat, lon, city) =>
-        this.searchWeatherByCoords(lat, lon, city),
-      clearData: () => this.clearData(),
-      getByLocation: () => this.getByLocation(),
-      version: "1.0.0",
+      searchWeather: (city) => this.searchWeather(city),
+      searchByLocation: () => this.searchByGeolocation(),
+      clearData: () => this.clearAllData(),
+      getHistory: () => Storage.getHistory(),
+      version: CONFIG.VERSION,
+      config: CONFIG,
     };
-  }
 
-  // ========== GEOLOCATION ==========
-  getByLocation() {
-    if (!navigator.geolocation) {
-      alert("Geolocalização não suportada neste navegador.");
-      return;
-    }
+    Utils.log("API global exposta em window.garoinha");
+  },
+};
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        await this.searchWeatherByCoords(
-          latitude,
-          longitude,
-          "Sua Localização"
-        );
-      },
-      (error) => {
-        console.error("❌ Erro de geolocalização:", error);
-        alert("Não foi possível obter sua localização.");
-      }
-    );
-  }
-}
-
-// Inicializar app quando DOM estiver pronto
+// Inicializar quando DOM estiver pronto
 document.addEventListener("DOMContentLoaded", () => {
-  window.garoinhaApp = new GaroinhaApp();
+  window.app = App;
+  App.init();
 });
+
+// Exportar
+window.App = App;

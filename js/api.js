@@ -1,135 +1,282 @@
-// Gerenciamento de API e cache
-class WeatherAPI {
-  constructor() {
-    this.cache = this.getCache();
-  }
+// ========================================
+// CAMADA DE API - COMUNICAÇÃO COM OPEN-METEO
+// ========================================
 
-  // ========== CACHE ==========
-  getCache() {
-    const cached = localStorage.getItem(CONFIG.CACHE.KEY);
-    return cached ? JSON.parse(cached) : {};
-  }
-
-  setCache(key, data) {
-    this.cache[key] = {
-      data,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(CONFIG.CACHE.KEY, JSON.stringify(this.cache));
-  }
-
-  getCachedData(key) {
-    const cached = this.cache[key];
-    if (!cached) return null;
-
-    const isExpired = Date.now() - cached.timestamp > CONFIG.CACHE.DURATION;
-    return isExpired ? null : cached.data;
-  }
-
-  clearCache() {
-    this.cache = {};
-    localStorage.removeItem(CONFIG.CACHE.KEY);
-    console.log("✅ Cache limpo");
-  }
-
-  // ========== GEOCODING ==========
-  async searchCities(query) {
-    if (!query || query.length < 2) return [];
-
+const API = {
+  /**
+   * Busca coordenadas de uma cidade (Geocoding)
+   * @param {string} cityName - Nome da cidade
+   * @returns {Promise<Object>}
+   */
+  async searchCity(cityName) {
     try {
-      const url = `${
-        CONFIG.WEATHER_API.GEOCODING_URL
-      }?name=${encodeURIComponent(query)}&count=5&language=pt`;
-      const response = await this.fetchWithTimeout(url);
+      const url = `${CONFIG.GEOCODING_API}?name=${encodeURIComponent(
+        cityName
+      )}&count=${CONFIG.AUTOCOMPLETE_MAX_RESULTS}&language=pt&format=json`;
 
-      if (!response.ok) throw new Error("Erro na busca de cidades");
+      const response = await Utils.promiseWithTimeout(
+        fetch(url),
+        CONFIG.REQUEST_TIMEOUT
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const data = await response.json();
-      return data.results || [];
+
+      if (!data.results || data.results.length === 0) {
+        throw new Error("CITY_NOT_FOUND");
+      }
+
+      return data.results;
     } catch (error) {
-      console.error("❌ Erro ao buscar cidades:", error);
+      Utils.error("Erro na busca de cidade:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca dados meteorológicos com previsão de 7 dias
+   * @param {number} latitude - Latitude
+   * @param {number} longitude - Longitude
+   * @returns {Promise<Object>}
+   */
+  async getWeather(latitude, longitude) {
+    try {
+      const params = new URLSearchParams({
+        latitude: latitude,
+        longitude: longitude,
+        current: [
+          "temperature_2m",
+          "relative_humidity_2m",
+          "apparent_temperature",
+          "precipitation",
+          "weather_code",
+          "cloud_cover",
+          "pressure_msl",
+          "wind_speed_10m",
+          "wind_direction_10m",
+        ].join(","),
+        daily: [
+          "temperature_2m_max",
+          "temperature_2m_min",
+          "weather_code",
+          "precipitation_sum",
+          "precipitation_probability_max",
+        ].join(","),
+        timezone: "auto",
+        forecast_days: 7,
+      });
+
+      const url = `${CONFIG.WEATHER_API}?${params.toString()}`;
+
+      const response = await Utils.promiseWithTimeout(
+        fetch(url),
+        CONFIG.REQUEST_TIMEOUT
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      Utils.error("Erro ao buscar clima:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca completa: geocoding + weather + forecast
+   * @param {string} cityName - Nome da cidade
+   * @returns {Promise<Object>}
+   */
+  async getWeatherByCity(cityName) {
+    try {
+      // Verifica cache primeiro
+      const cached = Storage.getFromCache(cityName);
+      if (cached) {
+        Utils.log("Usando dados do cache");
+        return cached;
+      }
+
+      // Busca coordenadas
+      const cities = await this.searchCity(cityName);
+      const city = cities[0]; // Primeira opção
+
+      // Busca clima + previsão
+      const weatherData = await this.getWeather(city.latitude, city.longitude);
+
+      // Combina dados
+      const result = {
+        city: {
+          name: city.name,
+          country: city.country,
+          admin1: city.admin1,
+          latitude: city.latitude,
+          longitude: city.longitude,
+        },
+        weather: weatherData.current,
+        forecast: weatherData.daily,
+        timezone: weatherData.timezone,
+        timestamp: Date.now(),
+      };
+
+      // Salva no cache
+      Storage.saveToCache(cityName, result);
+
+      return result;
+    } catch (error) {
+      Utils.error("Erro na busca completa:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca clima por cidade específica (objeto)
+   * @param {Object} city - Objeto com dados da cidade
+   * @returns {Promise<Object>}
+   */
+  async getWeatherByCityObject(city) {
+    try {
+      const cached = Storage.getFromCache(city.name);
+      if (cached) {
+        Utils.log("Usando dados do cache");
+        return cached;
+      }
+
+      const weatherData = await this.getWeather(city.latitude, city.longitude);
+
+      const result = {
+        city: {
+          name: city.name,
+          country: city.country,
+          admin1: city.admin1,
+          latitude: city.latitude,
+          longitude: city.longitude,
+        },
+        weather: weatherData.current,
+        forecast: weatherData.daily,
+        timezone: weatherData.timezone,
+        timestamp: Date.now(),
+      };
+
+      Storage.saveToCache(city.name, result);
+
+      return result;
+    } catch (error) {
+      Utils.error("Erro ao buscar clima:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca sugestões de cidades (para autocomplete)
+   * @param {string} query - Texto de busca
+   * @returns {Promise<Array>}
+   */
+  async getCitySuggestions(query) {
+    try {
+      if (
+        Utils.isEmpty(query) ||
+        query.length < CONFIG.AUTOCOMPLETE_MIN_CHARS
+      ) {
+        return [];
+      }
+
+      const cities = await this.searchCity(query);
+
+      // Formata resultados
+      return cities.map((city) => ({
+        name: city.name,
+        country: city.country,
+        admin1: city.admin1,
+        latitude: city.latitude,
+        longitude: city.longitude,
+        displayName: this.formatCityName(city),
+      }));
+    } catch (error) {
+      Utils.error("Erro ao buscar sugestões:", error);
       return [];
     }
-  }
+  },
 
-  // ========== WEATHER DATA ==========
-  async getWeatherData(lat, lon, cityName) {
-    const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-    const cached = this.getCachedData(cacheKey);
+  /**
+   * Formata nome da cidade para exibição
+   * @param {Object} city - Objeto cidade
+   * @returns {string}
+   */
+  formatCityName(city) {
+    let parts = [city.name];
 
-    if (cached) {
-      console.log("📦 Dados carregados do cache");
-      return cached;
+    if (city.admin1) {
+      parts.push(city.admin1);
     }
 
-    try {
-      const url = `${CONFIG.WEATHER_API.BASE_URL}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,precipitation,cloud_cover&timezone=auto`;
+    parts.push(city.country);
 
-      const response = await this.fetchWithTimeout(url);
+    return parts.join(", ");
+  },
 
-      if (!response.ok) throw new Error("Erro ao buscar dados do clima");
+  /**
+   * Busca clima pela geolocalização do usuário
+   * @returns {Promise<Object>}
+   */
+  async getWeatherByGeolocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocalização não suportada"));
+        return;
+      }
 
-      const data = await response.json();
-      const processedData = this.processWeatherData(data, cityName);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const weatherData = await this.getWeather(latitude, longitude);
 
-      this.setCache(cacheKey, processedData);
-      return processedData;
-    } catch (error) {
-      console.error("❌ Erro ao buscar dados do clima:", error);
-      throw error;
-    }
-  }
+            // Busca nome da cidade pelas coordenadas (reverse geocoding)
+            const url = `${CONFIG.GEOCODING_API}?latitude=${latitude}&longitude=${longitude}&count=1&language=pt&format=json`;
+            const response = await fetch(url);
+            const geoData = await response.json();
 
-  // ========== PROCESS DATA ==========
-  processWeatherData(data, cityName) {
-    const current = data.current;
-    const weatherCode = current.weather_code;
-    const weatherInfo = CONFIG.WEATHER_CODES[weatherCode] || {
-      desc: "Desconhecido",
-      icon: "❓",
-      color: "#666",
-    };
+            const city = geoData.results?.[0] || {
+              name: "Localização Atual",
+              country: "",
+            };
 
-    return {
-      city: cityName,
-      temperature: Math.round(current.temperature_2m),
-      feelsLike: Math.round(current.apparent_temperature),
-      humidity: current.relative_humidity_2m,
-      windSpeed: Math.round(current.wind_speed_10m * 3.6), // Convert m/s to km/h
-      windDirection: this.getWindDirection(current.wind_direction_10m),
-      pressure: Math.round(current.surface_pressure),
-      precipitation: current.precipitation,
-      cloudCover: current.cloud_cover,
-      weatherCode: weatherCode,
-      description: weatherInfo.desc,
-      icon: weatherInfo.icon,
-      color: weatherInfo.color,
-      lastUpdated: new Date().toLocaleString("pt-BR"),
-    };
-  }
+            const result = {
+              city: {
+                name: city.name,
+                country: city.country,
+                latitude,
+                longitude,
+              },
+              weather: weatherData.current,
+              forecast: weatherData.daily,
+              timezone: weatherData.timezone,
+              timestamp: Date.now(),
+            };
 
-  getWindDirection(degrees) {
-    const index = Math.round(degrees / 22.5) % 16;
-    return CONFIG.WIND_DIRECTIONS[index];
-  }
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        },
+        (error) => {
+          Utils.error("Erro de geolocalização:", error);
+          reject(new Error("GEOLOCATION_ERROR"));
+        },
+        {
+          timeout: CONFIG.REQUEST_TIMEOUT,
+          enableHighAccuracy: false,
+        }
+      );
+    });
+  },
+};
 
-  // ========== UTILITIES ==========
-  async fetchWithTimeout(url) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT);
-
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      return response;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
-  }
-}
-
-// Instância global da API
-window.weatherAPI = new WeatherAPI();
+// Exportar para uso global
+window.API = API;

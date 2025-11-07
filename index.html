@@ -3,8 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Garoinha - Previsão do Tempo</title>
+    <meta name="description" content="Garoinha - Previsão leve e certeira" />
+    <title>🌧️ Garoinha - Previsão do Tempo</title>
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
@@ -12,80 +15,127 @@
   </head>
   <body>
     <div class="container">
+      <!-- Header -->
       <header class="header">
         <h1 class="logo">🌧️ Garoinha</h1>
-        <p class="subtitle">Previsão leve e certeira</p>
+        <p class="tagline">Previsão leve e certeira</p>
       </header>
 
-      <main class="main">
-        <div class="search-container">
-          <div class="search-box">
-            <input
-              type="text"
-              id="searchInput"
-              placeholder="Digite o nome da cidade..."
-              class="search-input"
-            />
-            <button id="searchBtn" class="search-btn">🔍</button>
-          </div>
-          <div id="suggestions" class="suggestions"></div>
+      <!-- Search Section -->
+      <section class="search-section">
+        <div class="search-wrapper">
+          <input
+            type="text"
+            id="cityInput"
+            class="search-input"
+            placeholder="Digite o nome da cidade..."
+            autocomplete="off"
+          />
+          <button id="searchBtn" class="search-btn">
+            <span class="search-icon">🔍</span>
+            Buscar
+          </button>
         </div>
 
-        <div id="weatherCard" class="weather-card hidden">
-          <div class="weather-header">
-            <h2 id="cityName" class="city-name">Cidade</h2>
-            <div id="currentTime" class="current-time"></div>
-          </div>
+        <!-- Autocomplete -->
+        <div id="autocomplete" class="autocomplete hidden"></div>
+      </section>
 
-          <div class="weather-main">
-            <div class="temperature-section">
-              <div id="weatherIcon" class="weather-icon">☀️</div>
-              <div id="currentTemp" class="current-temp">--°</div>
-              <div id="weatherDesc" class="weather-desc">--</div>
+      <!-- Loading -->
+      <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
+      </div>
+
+      <!-- Error Message -->
+      <div id="error" class="error hidden">
+        <span class="error-icon">⚠️</span>
+        <p id="errorMessage"></p>
+      </div>
+
+      <!-- Weather Card -->
+      <div id="weatherCard" class="weather-card hidden">
+        <!-- Location -->
+        <div class="weather-header">
+          <h2 id="cityName" class="city-name"></h2>
+          <p id="country" class="country"></p>
+        </div>
+
+        <!-- Main Weather Info -->
+        <div class="weather-main">
+          <div class="temperature-container">
+            <span id="weatherIcon" class="weather-icon-large"></span>
+            <div class="temperature-info">
+              <h3 id="temperature" class="temperature"></h3>
+              <p id="weatherDesc" class="weather-desc"></p>
             </div>
+          </div>
+          <p id="feelsLike" class="feels-like"></p>
+        </div>
 
-            <div class="weather-details">
-              <div class="detail-item">
-                <span class="detail-label">Sensação</span>
-                <span id="feelsLike" class="detail-value">--°</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Umidade</span>
-                <span id="humidity" class="detail-value">--%</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Vento</span>
-                <span id="windSpeed" class="detail-value">-- km/h</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Pressão</span>
-                <span id="pressure" class="detail-value">-- hPa</span>
-              </div>
+        <!-- Weather Details -->
+        <div class="weather-details">
+          <div class="detail-item">
+            <span class="detail-icon">💧</span>
+            <div class="detail-info">
+              <p class="detail-label">Umidade</p>
+              <p id="humidity" class="detail-value"></p>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-icon">💨</span>
+            <div class="detail-info">
+              <p class="detail-label">Vento</p>
+              <p id="windSpeed" class="detail-value"></p>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-icon">🌡️</span>
+            <div class="detail-info">
+              <p class="detail-label">Pressão</p>
+              <p id="pressure" class="detail-value"></p>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-icon">☁️</span>
+            <div class="detail-info">
+              <p class="detail-label">Nuvens</p>
+              <p id="cloudCover" class="detail-value"></p>
             </div>
           </div>
         </div>
 
-        <div id="errorMessage" class="error-message hidden">
-          <p>😕 Não foi possível encontrar essa cidade.</p>
-          <p>Tente novamente com outro nome.</p>
+        <!-- 7-Day Forecast -->
+        <div class="forecast-section">
+          <h3 class="forecast-title">Próximos 7 dias</h3>
+          <div id="forecastContainer" class="forecast-container"></div>
         </div>
 
-        <div id="loading" class="loading hidden">
-          <div class="loading-spinner"></div>
-          <p>Buscando dados...</p>
+        <!-- Last Update -->
+        <div class="weather-footer">
+          <p id="lastUpdate" class="last-update"></p>
         </div>
-      </main>
+      </div>
 
+      <!-- Footer -->
       <footer class="footer">
-        <p>
-          Dados por
+        <p>Desenvolvido com ☕ e 🌧️ no Brasil</p>
+        <p class="api-credit">
+          Dados:
           <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>
         </p>
       </footer>
     </div>
 
+    <!-- Scripts -->
     <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/weather.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
   </body>
