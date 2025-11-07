@@ -30,8 +30,12 @@ const App = {
       const data = await API.getWeatherByCity(cityName);
 
       UI.showWeather(data);
-      Storage.addToHistory(data.city.name, data.city.country);
-      Storage.saveLastSearch(data.city.name);
+
+      // Salvar histórico e última busca de forma segura
+      if (data && data.city && data.city.name) {
+        Storage.addToHistory(data.city.name, data.city.country || "");
+        Storage.saveLastSearch(data.city.name);
+      }
 
       Utils.log("Clima carregado:", data.city.name);
     } catch (error) {
@@ -51,8 +55,12 @@ const App = {
       const data = await API.getWeatherByCityObject(city);
 
       UI.showWeather(data);
-      Storage.addToHistory(data.city.name, data.city.country);
-      Storage.saveLastSearch(data.city.name);
+
+      // Salvar histórico e última busca de forma segura
+      if (data && data.city && data.city.name) {
+        Storage.addToHistory(data.city.name, data.city.country || "");
+        Storage.saveLastSearch(data.city.name);
+      }
 
       Utils.log("Clima carregado:", data.city.name);
     } catch (error) {

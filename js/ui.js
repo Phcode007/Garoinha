@@ -245,6 +245,11 @@ const UI = {
 
     const processed = Weather.processWeatherData(data);
 
+    if (!processed) {
+      this.showError("Erro ao processar dados do clima");
+      return;
+    }
+
     // Update location
     this.elements.cityName.textContent = processed.location.name;
     this.elements.country.textContent = processed.location.country;
@@ -268,8 +273,12 @@ const UI = {
     this.updateBackground(processed.description.gradient);
 
     // Show forecast if available
-    if (data.forecast) {
-      this.showForecast(data.forecast);
+    if (processed.forecast && processed.forecast.time) {
+      this.showForecast(processed.forecast);
+    } else {
+      // Ocultar seção de previsão se não houver dados
+      this.elements.forecastContainer.innerHTML =
+        '<p style="text-align: center; color: #718096;">Previsão não disponível</p>';
     }
 
     this.elements.weatherCard.classList.remove("hidden");

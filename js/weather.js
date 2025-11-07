@@ -9,27 +9,32 @@ const Weather = {
    * @returns {Object}
    */
   processWeatherData(data) {
-    const { city, weather, timestamp } = data;
+    if (!data || !data.city || !data.weather) {
+      console.error("Dados inválidos:", data);
+      return null;
+    }
+
+    const { city, weather, timestamp, forecast } = data;
     const weatherInfo = Utils.getWeatherInfo(weather.weather_code);
 
     return {
       location: {
-        name: city.name,
-        country: city.country,
-        admin1: city.admin1,
+        name: city.name || "Desconhecido",
+        country: city.country || "",
+        admin1: city.admin1 || "",
         fullName: this.formatLocationName(city),
       },
 
       current: {
-        temperature: weather.temperature_2m,
-        feelsLike: weather.apparent_temperature,
-        humidity: weather.relative_humidity_2m,
-        windSpeed: weather.wind_speed_10m,
-        windDirection: weather.wind_direction_10m,
-        pressure: weather.pressure_msl,
-        cloudCover: weather.cloud_cover,
-        precipitation: weather.precipitation,
-        weatherCode: weather.weather_code,
+        temperature: weather.temperature_2m || 0,
+        feelsLike: weather.apparent_temperature || 0,
+        humidity: weather.relative_humidity_2m || 0,
+        windSpeed: weather.wind_speed_10m || 0,
+        windDirection: weather.wind_direction_10m || 0,
+        pressure: weather.pressure_msl || 0,
+        cloudCover: weather.cloud_cover || 0,
+        precipitation: weather.precipitation || 0,
+        weatherCode: weather.weather_code || 0,
       },
 
       description: {
@@ -50,6 +55,9 @@ const Weather = {
         lastUpdate: Utils.formatDate(new Date(timestamp)),
       },
 
+      // Incluir forecast se disponível
+      forecast: forecast || null,
+
       timestamp,
     };
   },
@@ -60,6 +68,8 @@ const Weather = {
    * @returns {string}
    */
   formatLocationName(city) {
+    if (!city || !city.name) return "Desconhecido";
+
     const parts = [city.name];
 
     if (city.admin1 && city.admin1 !== city.name) {
@@ -140,6 +150,8 @@ const Weather = {
    * @returns {string}
    */
   getDailyTip(weatherData) {
+    if (!weatherData || !weatherData.current) return "😊 Tenha um ótimo dia!";
+
     const { current, description } = weatherData;
     const tips = [];
 
