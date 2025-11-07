@@ -1,341 +1,195 @@
 // ========================================
-// MANIPULAÇÃO DA INTERFACE DO USUÁRIO
+// PROCESSAMENTO DE DADOS METEOROLÓGICOS
 // ========================================
 
-const UI = {
-  elements: null,
-  currentSuggestionIndex: -1,
-
+const Weather = {
   /**
-   * Inicializa elementos do DOM
+   * Processa dados brutos da API
+   * @param {Object} data - Dados da API
+   * @returns {Object}
    */
-  init() {
-    this.elements = {
-      // Search
-      cityInput: document.getElementById("cityInput"),
-      searchBtn: document.getElementById("searchBtn"),
-      autocomplete: document.getElementById("autocomplete"),
+  processWeatherData(data) {
+    const { city, weather, timestamp } = data;
+    const weatherInfo = Utils.getWeatherInfo(weather.weather_code);
 
-      // States
-      loading: document.getElementById("loading"),
-      error: document.getElementById("error"),
-      errorMessage: document.getElementById("errorMessage"),
-      weatherCard: document.getElementById("weatherCard"),
+    return {
+      location: {
+        name: city.name,
+        country: city.country,
+        admin1: city.admin1,
+        fullName: this.formatLocationName(city),
+      },
 
-      // Weather Info
-      cityName: document.getElementById("cityName"),
-      country: document.getElementById("country"),
-      weatherIcon: document.getElementById("weatherIcon"),
-      temperature: document.getElementById("temperature"),
-      weatherDesc: document.getElementById("weatherDesc"),
-      feelsLike: document.getElementById("feelsLike"),
-      humidity: document.getElementById("humidity"),
-      windSpeed: document.getElementById("windSpeed"),
-      pressure: document.getElementById("pressure"),
-      cloudCover: document.getElementById("cloudCover"),
-      lastUpdate: document.getElementById("lastUpdate"),
+      current: {
+        temperature: weather.temperature_2m,
+        feelsLike: weather.apparent_temperature,
+        humidity: weather.relative_humidity_2m,
+        windSpeed: weather.wind_speed_10m,
+        windDirection: weather.wind_direction_10m,
+        pressure: weather.pressure_msl,
+        cloudCover: weather.cloud_cover,
+        precipitation: weather.precipitation,
+        weatherCode: weather.weather_code,
+      },
 
-      // Forecast
-      forecastContainer: document.getElementById("forecastContainer"),
+      description: {
+        text: weatherInfo.desc,
+        icon: weatherInfo.icon,
+        color: weatherInfo.color,
+        gradient: weatherInfo.gradient,
+      },
+
+      formatted: {
+        temperature: Utils.formatTemperature(weather.temperature_2m),
+        feelsLike: Utils.formatTemperature(weather.apparent_temperature),
+        humidity: Utils.formatHumidity(weather.relative_humidity_2m),
+        windSpeed: Utils.formatWindSpeed(weather.wind_speed_10m),
+        windDirection: Utils.getWindDirection(weather.wind_direction_10m),
+        pressure: Utils.formatPressure(weather.pressure_msl),
+        cloudCover: Utils.formatCloudCover(weather.cloud_cover),
+        lastUpdate: Utils.formatDate(new Date(timestamp)),
+      },
+
+      timestamp,
     };
-
-    this.bindEvents();
-    Utils.log("UI inicializada");
   },
 
   /**
-   * Vincula eventos
+   * Formata nome completo da localização
+   * @param {Object} city - Objeto cidade
+   * @returns {string}
    */
-  bindEvents() {
-    // Search
-    this.elements.searchBtn.addEventListener("click", () =>
-      this.handleSearch()
-    );
-    this.elements.cityInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") this.handleSearch();
-    });
+  formatLocationName(city) {
+    const parts = [city.name];
 
-    // Autocomplete
-    this.elements.cityInput.addEventListener(
-      "input",
-      Utils.debounce(() => this.handleAutocomplete(), CONFIG.DEBOUNCE_DELAY)
-    );
-
-    // Keyboard navigation
-    this.elements.cityInput.addEventListener("keydown", (e) =>
-      this.handleKeyboardNavigation(e)
-    );
-
-    // Click outside to close autocomplete
-    document.addEventListener("click", (e) => {
-      if (!e.target.closest(".search-section")) {
-        this.hideAutocomplete();
-      }
-    });
-
-    // Keyboard shortcut: Ctrl/Cmd + K
-    document.addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        this.elements.cityInput.focus();
-      }
-    });
-  },
-
-  /**
-   * Lida com busca
-   */
-  async handleSearch() {
-    const query = Utils.sanitizeInput(this.elements.cityInput.value);
-
-    if (Utils.isEmpty(query)) {
-      this.showError(ERROR_MESSAGES.EMPTY_INPUT);
-      return;
+    if (city.admin1 && city.admin1 !== city.name) {
+      parts.push(city.admin1);
     }
 
-    this.hideAutocomplete();
+    return parts.join(", ");
+  },
 
-    // Delegar para app.js
-    if (window.app) {
-      await window.app.searchWeather(query);
+  /**
+   * Obtém recomendação de roupa baseado no clima
+   * @param {number} temp - Temperatura
+   * @param {number} weatherCode - Código do clima
+   * @returns {string}
+   */
+  getClothingRecommendation(temp, weatherCode) {
+    const isRainy = weatherCode >= 51 && weatherCode <= 99;
+
+    if (temp < 10) {
+      return isRainy ? "🧥 Casaco impermeável" : "🧥 Casaco pesado";
+    } else if (temp < 20) {
+      return isRainy ? "☂️ Jaqueta e guarda-chuva" : "🧥 Jaqueta leve";
+    } else if (temp < 28) {
+      return isRainy ? "☂️ Roupa leve e guarda-chuva" : "👕 Roupa leve";
+    } else {
+      return isRainy ? "☂️ Roupa fresca e guarda-chuva" : "👕 Roupa bem leve";
     }
   },
 
   /**
-   * Lida com autocomplete
+   * Classifica qualidade do ar baseado na umidade
+   * @param {number} humidity - Umidade relativa
+   * @returns {Object}
    */
-  async handleAutocomplete() {
-    const query = Utils.sanitizeInput(this.elements.cityInput.value);
-
-    if (query.length < CONFIG.AUTOCOMPLETE_MIN_CHARS) {
-      this.hideAutocomplete();
-      return;
-    }
-
-    try {
-      const suggestions = await API.getCitySuggestions(query);
-      this.showAutocomplete(suggestions);
-    } catch (error) {
-      Utils.error("Erro no autocomplete:", error);
+  getAirQualityFromHumidity(humidity) {
+    if (humidity < 30) {
+      return { level: "Baixa", desc: "Ar muito seco", emoji: "🏜️" };
+    } else if (humidity < 60) {
+      return { level: "Ideal", desc: "Umidade confortável", emoji: "✅" };
+    } else if (humidity < 80) {
+      return { level: "Alta", desc: "Ar úmido", emoji: "💧" };
+    } else {
+      return { level: "Muito Alta", desc: "Ar muito úmido", emoji: "💦" };
     }
   },
 
   /**
-   * Mostra sugestões de autocomplete
+   * Classifica intensidade do vento
+   * @param {number} speed - Velocidade em km/h
+   * @returns {Object}
    */
-  showAutocomplete(suggestions) {
-    if (!suggestions || suggestions.length === 0) {
-      this.hideAutocomplete();
-      return;
-    }
-
-    const html = suggestions
-      .map(
-        (city) => `
-      <div class="autocomplete-item" data-city='${JSON.stringify(city)}'>
-        <p class="city-name">${city.name}</p>
-        <p class="country">${city.displayName}</p>
-      </div>
-    `
-      )
-      .join("");
-
-    this.elements.autocomplete.innerHTML = html;
-    this.elements.autocomplete.classList.remove("hidden");
-    this.currentSuggestionIndex = -1;
-
-    // Add click handlers
-    this.elements.autocomplete
-      .querySelectorAll(".autocomplete-item")
-      .forEach((item) => {
-        item.addEventListener("click", () => this.selectSuggestion(item));
-      });
-  },
-
-  /**
-   * Esconde autocomplete
-   */
-  hideAutocomplete() {
-    this.elements.autocomplete.classList.add("hidden");
-    this.currentSuggestionIndex = -1;
-  },
-
-  /**
-   * Seleciona sugestão
-   */
-  selectSuggestion(item) {
-    const city = JSON.parse(item.dataset.city);
-    this.elements.cityInput.value = city.name;
-    this.hideAutocomplete();
-
-    if (window.app) {
-      window.app.searchWeatherByCity(city);
+  getWindIntensity(speed) {
+    if (speed < 12) {
+      return { level: "Calmo", desc: "Vento fraco", emoji: "🍃" };
+    } else if (speed < 30) {
+      return { level: "Brisa", desc: "Vento moderado", emoji: "💨" };
+    } else if (speed < 50) {
+      return { level: "Ventania", desc: "Vento forte", emoji: "🌬️" };
+    } else {
+      return { level: "Temporal", desc: "Vento muito forte", emoji: "🌪️" };
     }
   },
 
   /**
-   * Navegação por teclado no autocomplete
+   * Verifica se é hora de usar protetor solar
+   * @param {number} cloudCover - Cobertura de nuvens em %
+   * @param {number} weatherCode - Código do clima
+   * @returns {boolean}
    */
-  handleKeyboardNavigation(e) {
-    const items =
-      this.elements.autocomplete.querySelectorAll(".autocomplete-item");
-    if (items.length === 0) return;
-
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        this.currentSuggestionIndex =
-          (this.currentSuggestionIndex + 1) % items.length;
-        this.highlightSuggestion(items);
-        break;
-
-      case "ArrowUp":
-        e.preventDefault();
-        this.currentSuggestionIndex =
-          this.currentSuggestionIndex <= 0
-            ? items.length - 1
-            : this.currentSuggestionIndex - 1;
-        this.highlightSuggestion(items);
-        break;
-
-      case "Enter":
-        if (this.currentSuggestionIndex >= 0) {
-          e.preventDefault();
-          this.selectSuggestion(items[this.currentSuggestionIndex]);
-        }
-        break;
-
-      case "Escape":
-        this.hideAutocomplete();
-        break;
-    }
+  needsSunscreen(cloudCover, weatherCode) {
+    const isSunny = weatherCode <= 2;
+    return isSunny && cloudCover < 50;
   },
 
   /**
-   * Destaca sugestão ativa
+   * Obtém dica do dia baseada no clima
+   * @param {Object} weatherData - Dados processados
+   * @returns {string}
    */
-  highlightSuggestion(items) {
-    items.forEach((item, index) => {
-      item.classList.toggle("active", index === this.currentSuggestionIndex);
-    });
-  },
+  getDailyTip(weatherData) {
+    const { current, description } = weatherData;
+    const tips = [];
 
-  /**
-   * Mostra loading
-   */
-  showLoading() {
-    this.hideAll();
-    this.elements.loading.classList.remove("hidden");
-  },
-
-  /**
-   * Mostra erro
-   */
-  showError(message = ERROR_MESSAGES.GENERIC) {
-    this.hideAll();
-    this.elements.errorMessage.textContent = message;
-    this.elements.error.classList.remove("hidden");
-  },
-
-  /**
-   * Mostra card de clima
-   */
-  showWeather(data) {
-    this.hideAll();
-
-    const processed = Weather.processWeatherData(data);
-
-    // Update location
-    this.elements.cityName.textContent = processed.location.name;
-    this.elements.country.textContent = processed.location.country;
-
-    // Update main weather
-    this.elements.weatherIcon.textContent = processed.description.icon;
-    this.elements.temperature.textContent = processed.formatted.temperature;
-    this.elements.weatherDesc.textContent = processed.description.text;
-    this.elements.feelsLike.textContent = `Sensação: ${processed.formatted.feelsLike}`;
-
-    // Update details
-    this.elements.humidity.textContent = processed.formatted.humidity;
-    this.elements.windSpeed.textContent = `${processed.formatted.windSpeed} ${processed.formatted.windDirection}`;
-    this.elements.pressure.textContent = processed.formatted.pressure;
-    this.elements.cloudCover.textContent = processed.formatted.cloudCover;
-
-    // Update time
-    this.elements.lastUpdate.textContent = `Atualizado: ${processed.formatted.lastUpdate}`;
-
-    // Update background gradient
-    this.updateBackground(processed.description.gradient);
-
-    // Show forecast if available
-    if (data.forecast) {
-      this.showForecast(data.forecast);
+    // Chuva
+    if (current.weatherCode >= 51 && current.weatherCode <= 99) {
+      tips.push("☂️ Não esqueça o guarda-chuva!");
     }
 
-    this.elements.weatherCard.classList.remove("hidden");
+    // Sol forte
+    if (this.needsSunscreen(current.cloudCover, current.weatherCode)) {
+      tips.push("☀️ Use protetor solar!");
+    }
+
+    // Vento forte
+    if (current.windSpeed > 30) {
+      tips.push("🌬️ Cuidado com objetos soltos!");
+    }
+
+    // Temperatura extrema
+    if (current.temperature > 35) {
+      tips.push("🥵 Mantenha-se hidratado!");
+    } else if (current.temperature < 10) {
+      tips.push("🥶 Vista-se bem!");
+    }
+
+    // Umidade
+    if (current.humidity > 80) {
+      tips.push("💧 Dia abafado, beba água!");
+    } else if (current.humidity < 30) {
+      tips.push("🏜️ Ar seco, hidrate-se!");
+    }
+
+    return tips.length > 0 ? tips[0] : "😊 Tenha um ótimo dia!";
   },
 
   /**
-   * Mostra previsão de 7 dias
+   * Compara duas leituras de clima
+   * @param {Object} current - Dados atuais
+   * @param {Object} previous - Dados anteriores
+   * @returns {Object}
    */
-  showForecast(forecast) {
-    if (!forecast || !forecast.daily) return;
-
-    const { time, temperature_2m_max, temperature_2m_min, weather_code } =
-      forecast.daily;
-
-    const forecastHTML = time
-      .slice(0, 7)
-      .map((date, index) => {
-        const dayName = this.getDayName(date, index);
-        const maxTemp = Math.round(temperature_2m_max[index]);
-        const minTemp = Math.round(temperature_2m_min[index]);
-        const weatherInfo = Utils.getWeatherInfo(weather_code[index]);
-
-        return `
-        <div class="forecast-item">
-          <p class="forecast-day">${dayName}</p>
-          <span class="forecast-icon">${weatherInfo.icon}</span>
-          <div class="forecast-temps">
-            <span class="temp-max">${maxTemp}°</span>
-            <span class="temp-min">${minTemp}°</span>
-          </div>
-        </div>
-      `;
-      })
-      .join("");
-
-    this.elements.forecastContainer.innerHTML = forecastHTML;
-  },
-
-  /**
-   * Obtém nome do dia da semana
-   */
-  getDayName(dateString, index) {
-    if (index === 0) return "Hoje";
-    if (index === 1) return "Amanhã";
-
-    const date = new Date(dateString);
-    const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-    return days[date.getDay()];
-  },
-
-  /**
-   * Atualiza gradiente de fundo
-   */
-  updateBackground(gradient) {
-    document.body.style.background = gradient;
-  },
-
-  /**
-   * Esconde todos os estados
-   */
-  hideAll() {
-    this.elements.loading.classList.add("hidden");
-    this.elements.error.classList.add("hidden");
-    this.elements.weatherCard.classList.add("hidden");
+  compareWeather(current, previous) {
+    return {
+      temperatureDiff: current.temperature - previous.temperature,
+      humidityDiff: current.humidity - previous.humidity,
+      pressureDiff: current.pressure - previous.pressure,
+      conditionChanged: current.weatherCode !== previous.weatherCode,
+    };
   },
 };
 
 // Exportar para uso global
-window.UI = UI;
+window.Weather = Weather;
