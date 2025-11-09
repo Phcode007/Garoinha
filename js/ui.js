@@ -1,5 +1,5 @@
 // ========================================
-// MANIPULAÇÃO DA INTERFACE DO USUÁRIO
+// MANIPULAÇÃO DA INTERFACE DO USUÁRIO - VERSÃO COMPLETA E CORRIGIDA
 // ========================================
 
 const UI = {
@@ -238,7 +238,7 @@ const UI = {
   },
 
   /**
-   * Mostra card de clima
+   * Mostra card de clima - VERSÃO CORRIGIDA
    */
   showWeather(data) {
     this.hideAll();
@@ -249,6 +249,18 @@ const UI = {
       this.showError("Erro ao processar dados do clima");
       return;
     }
+
+    // Debug: Mostrar estrutura dos dados processados
+    console.log("🔍 Dados processados:", {
+      location: processed.location,
+      current: processed.current,
+      description: processed.description,
+      forecast: processed.forecast,
+      forecastExists: !!processed.forecast,
+      forecastTimeExists: processed.forecast
+        ? !!processed.forecast.time
+        : false,
+    });
 
     // Update location
     this.elements.cityName.textContent = processed.location.name;
@@ -272,27 +284,102 @@ const UI = {
     // Update background gradient
     this.updateBackground(processed.description.gradient);
 
-    // Show forecast if available
+    // CORREÇÃO PRINCIPAL: Verificar se forecast existe e tem dados
     if (processed.forecast && processed.forecast.time) {
+      console.log("✅ Forecast encontrado, exibindo...");
       this.showForecast(processed.forecast);
     } else {
-      // Ocultar seção de previsão se não houver dados
+      console.warn(
+        "❌ Forecast não encontrado ou sem dados:",
+        processed.forecast
+      );
       this.elements.forecastContainer.innerHTML =
-        '<p style="text-align: center; color: #718096;">Previsão não disponível</p>';
+        '<p style="text-align: center; color: #718096;">Previsão não disponível para esta localização</p>';
     }
 
     this.elements.weatherCard.classList.remove("hidden");
   },
 
   /**
-   * Mostra previsão de 7 dias
+   * Mostra previsão de 7 dias - VERSÃO COMPLETA E CORRIGIDA
    */
   showForecast(forecast) {
-    if (!forecast || !forecast.daily) return;
+    // CORREÇÃO: Verificar se forecast tem a estrutura correta
+    console.log("🔍 Debug forecast na UI:", forecast);
 
-    const { time, temperature_2m_max, temperature_2m_min, weather_code } =
-      forecast.daily;
+    if (!forecast) {
+      console.error("❌ Forecast é null/undefined");
+      this.elements.forecastContainer.innerHTML =
+        '<p style="text-align: center; color: #718096;">Dados de previsão indisponíveis</p>';
+      return;
+    }
 
+    if (!forecast.time) {
+      console.error("❌ Forecast não tem propriedade 'time':", forecast);
+      this.elements.forecastContainer.innerHTML =
+        '<p style="text-align: center; color: #718096;">Dados de previsão incompletos</p>';
+      return;
+    }
+
+    if (!Array.isArray(forecast.time)) {
+      console.error("❌ Forecast.time não é um array:", typeof forecast.time);
+      this.elements.forecastContainer.innerHTML =
+        '<p style="text-align: center; color: #718096;">Formato de dados inválido</p>';
+      return;
+    }
+
+    if (forecast.time.length === 0) {
+      console.error("❌ Forecast.time está vazio");
+      this.elements.forecastContainer.innerHTML =
+        '<p style="text-align: center; color: #718096;">Sem dados de previsão disponíveis</p>';
+      return;
+    }
+
+    // CORREÇÃO: Verificar se os arrays correspondentes existem e têm dados
+    const {
+      time,
+      temperature_2m_max,
+      temperature_2m_min,
+      weather_code,
+      precipitation_sum,
+      precipitation_probability_max,
+    } = forecast;
+
+    if (!temperature_2m_max || !temperature_2m_min || !weather_code) {
+      console.error("❌ Arrays de forecast incompletos:", {
+        temperature_2m_max: !!temperature_2m_max,
+        temperature_2m_min: !!temperature_2m_min,
+        weather_code: !!weather_code,
+      });
+      this.elements.forecastContainer.innerHTML =
+        '<p style="text-align: center; color: #718096;">Dados de previsão incompletos</p>';
+      return;
+    }
+
+    // Verificar se todos os arrays têm o mesmo tamanho
+    if (
+      temperature_2m_max.length !== time.length ||
+      temperature_2m_min.length !== time.length ||
+      weather_code.length !== time.length
+    ) {
+      console.error("❌ Arrays de forecast têm tamanhos diferentes:", {
+        time: time.length,
+        tempMax: temperature_2m_max.length,
+        tempMin: temperature_2m_min.length,
+        weatherCode: weather_code.length,
+      });
+      this.elements.forecastContainer.innerHTML =
+        '<p style="text-align: center; color: #718096;">Dados de previsão inconsistentes</p>';
+      return;
+    }
+
+    console.log("✅ Forecast validado com sucesso:", {
+      dias: time.length,
+      temProbabilidade: !!precipitation_probability_max,
+      temChuva: !!precipitation_sum,
+    });
+
+    // Gerar HTML da previsão
     const forecastHTML = time
       .slice(0, 7)
       .map((date, index) => {
@@ -301,20 +388,63 @@ const UI = {
         const minTemp = Math.round(temperature_2m_min[index]);
         const weatherInfo = Utils.getWeatherInfo(weather_code[index]);
 
+        // CORREÇÃO: Adicionar informação de chuva se disponível
+        const rainInfo = precipitation_probability_max
+          ? `<p style="font-size: 0.75rem; color: #4a90e2; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 3px;">
+            💧 <span>${precipitation_probability_max[index] || 0}%</span>
+          </p>`
+          : "";
+
+        const rainAmount = precipitation_sum
+          ? `<p style="font-size: 0.7rem; color: #718096; margin-top: 1px;">
+            🌧️ ${precipitation_sum[index] || 0}mm
+          </p>`
+          : "";
+
         return `
-        <div class="forecast-item">
+        <div class="forecast-item" style="animation: fadeInUp 0.3s ease ${
+          index * 0.1
+        }s both;">
           <p class="forecast-day">${dayName}</p>
-          <span class="forecast-icon">${weatherInfo.icon}</span>
+          <span class="forecast-icon" title="${weatherInfo.desc}">${
+          weatherInfo.icon
+        }</span>
           <div class="forecast-temps">
             <span class="temp-max">${maxTemp}°</span>
             <span class="temp-min">${minTemp}°</span>
           </div>
+          ${rainInfo}
+          ${rainAmount}
         </div>
       `;
       })
       .join("");
 
     this.elements.forecastContainer.innerHTML = forecastHTML;
+
+    // Adicionar evento de hover para mostrar informações extras
+    this.addForecastTooltips();
+  },
+
+  /**
+   * Adiciona tooltips aos itens de previsão
+   */
+  addForecastTooltips() {
+    const forecastItems =
+      this.elements.forecastContainer.querySelectorAll(".forecast-item");
+
+    forecastItems.forEach((item, index) => {
+      item.addEventListener("mouseenter", (e) => {
+        // Poderia adicionar tooltip com mais informações
+        item.style.transform = "translateY(-4px)";
+        item.style.boxShadow = "0 4px 12px rgba(102, 126, 234, 0.2)";
+      });
+
+      item.addEventListener("mouseleave", (e) => {
+        item.style.transform = "translateY(0)";
+        item.style.boxShadow = "none";
+      });
+    });
   },
 
   /**
@@ -343,6 +473,91 @@ const UI = {
     this.elements.loading.classList.add("hidden");
     this.elements.error.classList.add("hidden");
     this.elements.weatherCard.classList.add("hidden");
+  },
+
+  /**
+   * Função para atualizar apenas a previsão (útil para refresh)
+   */
+  updateForecast(forecast) {
+    if (forecast && forecast.time) {
+      this.showForecast(forecast);
+    }
+  },
+
+  /**
+   * Mostra/esconde elementos de forma animada
+   */
+  animateElement(element, show = true) {
+    if (show) {
+      element.classList.remove("hidden");
+      element.style.opacity = "0";
+      element.style.transform = "translateY(20px)";
+
+      setTimeout(() => {
+        element.style.transition = "all 0.3s ease";
+        element.style.opacity = "1";
+        element.style.transform = "translateY(0)";
+      }, 10);
+    } else {
+      element.style.transition = "all 0.3s ease";
+      element.style.opacity = "0";
+      element.style.transform = "translateY(-20px)";
+
+      setTimeout(() => {
+        element.classList.add("hidden");
+      }, 300);
+    }
+  },
+
+  /**
+   * Atualiza a interface com novos dados de clima
+   */
+  refreshWeather(data) {
+    if (data && data.weather) {
+      // Atualizar informações principais
+      this.elements.temperature.textContent = Utils.formatTemperature(
+        data.weather.temperature_2m
+      );
+      this.elements.weatherIcon.textContent = Utils.getWeatherInfo(
+        data.weather.weather_code
+      ).icon;
+      this.elements.weatherDesc.textContent = Utils.getWeatherInfo(
+        data.weather.weather_code
+      ).desc;
+      this.elements.feelsLike.textContent = `Sensação: ${Utils.formatTemperature(
+        data.weather.apparent_temperature
+      )}`;
+
+      // Atualizar detalhes
+      this.elements.humidity.textContent = Utils.formatHumidity(
+        data.weather.relative_humidity_2m
+      );
+      this.elements.windSpeed.textContent = `${Utils.formatWindSpeed(
+        data.weather.wind_speed_10m
+      )} ${Utils.getWindDirection(data.weather.wind_direction_10m)}`;
+      this.elements.pressure.textContent = Utils.formatPressure(
+        data.weather.pressure_msl
+      );
+      this.elements.cloudCover.textContent = Utils.formatCloudCover(
+        data.weather.cloud_cover
+      );
+
+      // Atualizar horário
+      this.elements.lastUpdate.textContent = `Atualizado: ${Utils.formatDate(
+        new Date(data.timestamp)
+      )}`;
+
+      // Atualizar background
+      if (data.weather) {
+        const weatherInfo = Utils.getWeatherInfo(data.weather.weather_code);
+        this.updateBackground(weatherInfo.gradient);
+      }
+
+      // Atualizar forecast se disponível
+      if (data.forecast && data.forecast.time) {
+        this.updateForecast(data.forecast);
+      }
+    }
   },
 };
 

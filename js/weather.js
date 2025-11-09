@@ -1,10 +1,10 @@
 // ========================================
-// PROCESSAMENTO DE DADOS METEOROLÓGICOS
+// PROCESSAMENTO DE DADOS METEOROLÓGICOS - VERSÃO CORRIGIDA
 // ========================================
 
 const Weather = {
   /**
-   * Processa dados brutos da API
+   * Processa dados brutos da API - VERSÃO CORRIGIDA
    * @param {Object} data - Dados da API
    * @returns {Object}
    */
@@ -16,6 +16,15 @@ const Weather = {
 
     const { city, weather, timestamp, forecast } = data;
     const weatherInfo = Utils.getWeatherInfo(weather.weather_code);
+
+    // CORREÇÃO: Verificar se forecast existe e tem a estrutura correta
+    console.log("🔍 Processando dados:", {
+      forecastExiste: !!forecast,
+      forecastEArray: Array.isArray(forecast),
+      forecastTime: forecast ? forecast.time : "N/A",
+      forecastLength: forecast ? forecast.time?.length : 0,
+      forecastDaily: forecast ? forecast.daily : "N/A",
+    });
 
     return {
       location: {
@@ -55,7 +64,8 @@ const Weather = {
         lastUpdate: Utils.formatDate(new Date(timestamp)),
       },
 
-      // Incluir forecast se disponível
+      // CORREÇÃO: Garantir que forecast seja passado corretamente
+      // O forecast já vem com a estrutura correta da API (forecast.daily)
       forecast: forecast || null,
 
       timestamp,
@@ -201,7 +211,164 @@ const Weather = {
       conditionChanged: current.weatherCode !== previous.weatherCode,
     };
   },
+
+  /**
+   * Função para validar e processar dados de forecast
+   * @param {Object} forecast - Dados do forecast da API
+   * @returns {Object|null}
+   */
+  validateForecastData(forecast) {
+    if (!forecast) {
+      console.warn("❌ Forecast não fornecido");
+      return null;
+    }
+
+    // Verificar se é um objeto com propriedades
+    if (typeof forecast !== "object") {
+      console.warn("❌ Forecast não é um objeto:", typeof forecast);
+      return null;
+    }
+
+    // Verificar se tem time
+    if (!forecast.time) {
+      console.warn("❌ Forecast não tem propriedade 'time'");
+      return null;
+    }
+
+    // Verificar se time é um array
+    if (!Array.isArray(forecast.time)) {
+      console.warn("❌ Forecast.time não é um array:", typeof forecast.time);
+      return null;
+    }
+
+    // Verificar se tem dados
+    if (forecast.time.length === 0) {
+      console.warn("❌ Forecast.time está vazio");
+      return null;
+    }
+
+    // Verificar se os arrays correspondentes existem
+    const requiredArrays = [
+      "temperature_2m_max",
+      "temperature_2m_min",
+      "weather_code",
+    ];
+    for (const arrayName of requiredArrays) {
+      if (!forecast[arrayName]) {
+        console.warn(`❌ Forecast não tem '${arrayName}'`);
+        return null;
+      }
+      if (!Array.isArray(forecast[arrayName])) {
+        console.warn(`❌ Forecast.${arrayName} não é um array`);
+        return null;
+      }
+      if (forecast[arrayName].length !== forecast.time.length) {
+        console.warn(`❌ Array ${arrayName} tem tamanho diferente de time`);
+        return null;
+      }
+    }
+
+    console.log("✅ Forecast validado com sucesso:", {
+      dias: forecast.time.length,
+      temProbabilidade: !!forecast.precipitation_probability_max,
+    });
+
+    return forecast;
+  },
+
+  /**
+   * Obtém resumo do clima para os próximos dias
+   * @param {Object} forecast - Dados do forecast
+   * @returns {string}
+   */
+  getForecastSummary(forecast) {
+    if (!forecast || !forecast.time || forecast.time.length === 0) {
+      return "Previsão indisponível";
+    }
+
+    const rainyDays = forecast.weather_code.filter(
+      (code) => code >= 51 && code <= 99
+    ).length;
+    const sunnyDays = forecast.weather_code.filter((code) => code <= 2).length;
+
+    if (rainyDays > forecast.time.length / 2) {
+      return `Chuva em ${rainyDays} dos ${forecast.time.length} dias`;
+    } else if (sunnyDays > forecast.time.length / 2) {
+      return `Predominantemente ensolarado`;
+    } else {
+      return `Clima variável nos próximos ${forecast.time.length} dias`;
+    }
+  },
+
+  /**
+   * Função de debug para verificar estrutura dos dados
+   * @param {Object} data - Dados brutos da API
+   */
+  debugDataStructure(data) {
+    console.log("🔍 ESTRUTURA DOS DADOS - DEBUG");
+    console.log("=" * 50);
+    console.log("📊 Dados fornecidos:", data);
+    console.log("📍 City:", data?.city);
+    console.log("🌤️ Weather:", data?.weather);
+    console.log("📅 Forecast:", data?.forecast);
+
+    if (data?.forecast) {
+      console.log("📅 Forecast details:");
+      console.log("  - time:", data.forecast.time);
+      console.log("  - temperature_2m_max:", data.forecast.temperature_2m_max);
+      console.log("  - temperature_2m_min:", data.forecast.temperature_2m_min);
+      console.log("  - weather_code:", data.forecast.weather_code);
+      console.log("  - precipitation_sum:", data.forecast.precipitation_sum);
+      console.log(
+        "  - precipitation_probability_max:",
+        data.forecast.precipitation_probability_max
+      );
+    }
+
+    console.log("=" * 50);
+  },
 };
 
 // Exportar para uso global
 window.Weather = Weather;
+
+// Função de diagnóstico global (pode ser usada no console)
+window.diagnosticarForecast = async function () {
+  console.log("🔍 DIAGNÓSTICO DO FORECAST - GAROINHA");
+  console.log("=" * 50);
+
+  try {
+    // Testar com uma cidade
+    const resultado = await API.getWeatherByCity("São Paulo");
+
+    console.log("✅ Dados retornados:", resultado);
+    console.log("📊 Estrutura dos dados:");
+    console.log("- city:", resultado.city ? "✅" : "❌");
+    console.log("- weather:", resultado.weather ? "✅" : "❌");
+    console.log("- forecast:", resultado.forecast ? "✅" : "❌");
+    console.log("- forecast.time:", resultado.forecast?.time ? "✅" : "❌");
+
+    if (resultado.forecast) {
+      console.log("📅 Forecast details:");
+      console.log("- forecast.time:", resultado.forecast.time);
+      console.log(
+        "- forecast.temperature_2m_max:",
+        resultado.forecast.temperature_2m_max
+      );
+      console.log(
+        "- forecast.temperature_2m_min:",
+        resultado.forecast.temperature_2m_min
+      );
+      console.log("- forecast.weather_code:", resultado.forecast.weather_code);
+    }
+
+    // Testar validação
+    const forecastValidado = Weather.validateForecastData(resultado.forecast);
+    console.log(
+      "✅ Forecast validado:",
+      forecastValidado ? "SUCESSO" : "FALHOU"
+    );
+  } catch (error) {
+    console.error("❌ Erro:", error);
+  }
+};
