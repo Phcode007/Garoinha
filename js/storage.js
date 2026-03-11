@@ -213,6 +213,56 @@ const Storage = {
   },
 
   /**
+   * Salva o tema
+   * @param {string} theme - 'light' ou 'dark'
+   */
+  saveTheme(theme) {
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.THEME, theme);
+    } catch (error) {
+      Utils.error("Erro ao salvar tema:", error);
+    }
+  },
+
+  /**
+   * Obtém o tema atual
+   * @returns {string} - 'dark' ou 'light' (padrão 'light')
+   */
+  getTheme() {
+    try {
+      return localStorage.getItem(CONFIG.STORAGE_KEYS.THEME) || 'light';
+    } catch (error) {
+      Utils.error("Erro ao ler tema:", error);
+      return 'light';
+    }
+  },
+
+  /**
+   * Salva a unidade de temperatura
+   * @param {string} unit - 'C' ou 'F'
+   */
+  saveUnit(unit) {
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.UNIT, unit);
+    } catch (error) {
+      Utils.error("Erro ao salvar unidade:", error);
+    }
+  },
+
+  /**
+   * Obtém a unidade atual
+   * @returns {string} - 'C' ou 'F' (padrão 'C')
+   */
+  getUnit() {
+    try {
+      return localStorage.getItem(CONFIG.STORAGE_KEYS.UNIT) || 'C';
+    } catch (error) {
+      Utils.error("Erro ao ler unidade:", error);
+      return 'C';
+    }
+  },
+
+  /**
    * Limpa todos os dados
    */
   clearAll() {

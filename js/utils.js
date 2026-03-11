@@ -44,12 +44,17 @@ const Utils = {
   },
 
   /**
-   * Formata temperatura
+   * Formata temperatura (suporta °C / °F)
    * @param {number} temp - Temperatura em Celsius
    * @returns {string}
    */
   formatTemperature(temp) {
-    return `${Math.round(temp)}°C`;
+    const unit = window.Storage && window.Storage.getUnit ? window.Storage.getUnit() : 'C';
+    let finalTemp = temp;
+    if (unit === 'F') {
+      finalTemp = (temp * 9 / 5) + 32;
+    }
+    return `${Math.round(finalTemp)}°`;
   },
 
   /**

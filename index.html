@@ -12,13 +12,20 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
   </head>
   <body>
     <div class="container">
       <!-- Header -->
       <header class="header">
-        <h1 class="logo">🌧️ Garoinha</h1>
-        <p class="tagline">Previsão leve e certeira</p>
+        <div class="header-content">
+          <h1 class="logo"><i class="ph-fill ph-cloud-rain"></i> Garoinha</h1>
+          <p class="tagline">Previsão leve e certeira</p>
+        </div>
+        <div class="header-controls">
+          <button id="unitToggle" class="control-btn" aria-label="Alternar Unidade (°C/°F)">°C</button>
+          <button id="themeToggle" class="control-btn" aria-label="Alternar Tema Escuro"><i class="ph-fill ph-moon"></i></button>
+        </div>
       </header>
 
       <!-- Search Section -->
@@ -32,7 +39,7 @@
             autocomplete="off"
           />
           <button id="searchBtn" class="search-btn">
-            <span class="search-icon">🔍</span>
+            <i class="ph ph-magnifying-glass search-icon"></i>
             Buscar
           </button>
         </div>
@@ -41,15 +48,29 @@
         <div id="autocomplete" class="autocomplete hidden"></div>
       </section>
 
-      <!-- Loading -->
-      <div id="loading" class="loading hidden">
-        <div class="spinner"></div>
-        <p>Carregando dados...</p>
+      <!-- Skeleton Loading -->
+      <div id="loading" class="skeleton-container hidden">
+        <div class="skeleton-header">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-subtitle"></div>
+        </div>
+        <div class="skeleton-main">
+          <div class="skeleton-icon"></div>
+          <div class="skeleton-temp"></div>
+          <div class="skeleton-desc"></div>
+        </div>
+        <div class="skeleton-details">
+          <div class="skeleton-item"></div>
+          <div class="skeleton-item"></div>
+          <div class="skeleton-item"></div>
+          <div class="skeleton-item"></div>
+        </div>
+        <div class="skeleton-forecast"></div>
       </div>
 
       <!-- Error Message -->
       <div id="error" class="error hidden">
-        <span class="error-icon">⚠️</span>
+        <i class="ph-fill ph-warning-circle error-icon"></i>
         <p id="errorMessage"></p>
       </div>
 
@@ -76,7 +97,7 @@
         <!-- Weather Details -->
         <div class="weather-details">
           <div class="detail-item">
-            <span class="detail-icon">💧</span>
+            <i class="ph-fill ph-drop detail-icon"></i>
             <div class="detail-info">
               <p class="detail-label">Umidade</p>
               <p id="humidity" class="detail-value"></p>
@@ -84,7 +105,7 @@
           </div>
 
           <div class="detail-item">
-            <span class="detail-icon">💨</span>
+            <i class="ph-fill ph-wind detail-icon"></i>
             <div class="detail-info">
               <p class="detail-label">Vento</p>
               <p id="windSpeed" class="detail-value"></p>
@@ -92,7 +113,7 @@
           </div>
 
           <div class="detail-item">
-            <span class="detail-icon">🌡️</span>
+            <i class="ph-fill ph-thermometer detail-icon"></i>
             <div class="detail-info">
               <p class="detail-label">Pressão</p>
               <p id="pressure" class="detail-value"></p>
@@ -100,7 +121,7 @@
           </div>
 
           <div class="detail-item">
-            <span class="detail-icon">☁️</span>
+            <i class="ph-fill ph-cloud detail-icon"></i>
             <div class="detail-info">
               <p class="detail-label">Nuvens</p>
               <p id="cloudCover" class="detail-value"></p>

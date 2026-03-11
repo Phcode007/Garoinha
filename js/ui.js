@@ -15,6 +15,10 @@ const UI = {
       cityInput: document.getElementById("cityInput"),
       searchBtn: document.getElementById("searchBtn"),
       autocomplete: document.getElementById("autocomplete"),
+      
+      // Controls
+      unitToggle: document.getElementById("unitToggle"),
+      themeToggle: document.getElementById("themeToggle"),
 
       // States
       loading: document.getElementById("loading"),
@@ -40,7 +44,22 @@ const UI = {
     };
 
     this.bindEvents();
+    this.applyInitialSettings();
     Utils.log("UI inicializada");
+  },
+
+  /**
+   * Aplica configurações salvas (Tema e Unidade)
+   */
+  applyInitialSettings() {
+    const theme = Storage.getTheme();
+    if (theme === "dark") {
+      document.body.classList.add("dark-theme");
+    }
+    this.updateThemeIcon(theme);
+    
+    const unit = Storage.getUnit();
+    this.updateUnitBtn(unit);
   },
 
   /**
@@ -60,6 +79,11 @@ const UI = {
       "input",
       Utils.debounce(() => this.handleAutocomplete(), CONFIG.DEBOUNCE_DELAY)
     );
+    this.elements.cityInput.addEventListener("focus", () => {
+      if (this.elements.cityInput.value.trim().length >= CONFIG.AUTOCOMPLETE_MIN_CHARS) {
+        this.handleAutocomplete();
+      }
+    });
 
     // Keyboard navigation
     this.elements.cityInput.addEventListener("keydown", (e) =>
@@ -80,6 +104,50 @@ const UI = {
         this.elements.cityInput.focus();
       }
     });
+
+    // Theme Toggle
+    if (this.elements.themeToggle) {
+      this.elements.themeToggle.addEventListener("click", () => this.toggleTheme());
+    }
+
+    // Unit Toggle
+    if (this.elements.unitToggle) {
+      this.elements.unitToggle.addEventListener("click", () => this.toggleUnit());
+    }
+  },
+
+  toggleTheme() {
+    const isDark = document.body.classList.toggle("dark-theme");
+    const theme = isDark ? "dark" : "light";
+    Storage.saveTheme(theme);
+    this.updateThemeIcon(theme);
+  },
+
+  updateThemeIcon(theme) {
+    if (!this.elements.themeToggle) return;
+    if (theme === "dark") {
+      this.elements.themeToggle.innerHTML = '<i class="ph-fill ph-sun"></i>';
+    } else {
+      this.elements.themeToggle.innerHTML = '<i class="ph-fill ph-moon"></i>';
+    }
+  },
+
+  toggleUnit() {
+    const current = Storage.getUnit();
+    const nextUnit = current === 'C' ? 'F' : 'C';
+    Storage.saveUnit(nextUnit);
+    this.updateUnitBtn(nextUnit);
+    
+    // Recarregar os dados do clima usando window.app
+    const lastCity = Storage.getLastSearch();
+    if (lastCity && window.app) {
+      window.app.searchWeather(lastCity);
+    }
+  },
+
+  updateUnitBtn(unit) {
+    if (!this.elements.unitToggle) return;
+    this.elements.unitToggle.textContent = '°' + unit;
   },
 
   /**
@@ -267,7 +335,7 @@ const UI = {
     this.elements.country.textContent = processed.location.country;
 
     // Update main weather
-    this.elements.weatherIcon.textContent = processed.description.icon;
+    this.elements.weatherIcon.innerHTML = processed.description.icon;
     this.elements.temperature.textContent = processed.formatted.temperature;
     this.elements.weatherDesc.textContent = processed.description.text;
     this.elements.feelsLike.textContent = `Sensação: ${processed.formatted.feelsLike}`;
@@ -384,20 +452,20 @@ const UI = {
       .slice(0, 7)
       .map((date, index) => {
         const dayName = this.getDayName(date, index);
-        const maxTemp = Math.round(temperature_2m_max[index]);
-        const minTemp = Math.round(temperature_2m_min[index]);
+        const maxTemp = Utils.formatTemperature(temperature_2m_max[index]);
+        const minTemp = Utils.formatTemperature(temperature_2m_min[index]);
         const weatherInfo = Utils.getWeatherInfo(weather_code[index]);
 
         // CORREÇÃO: Adicionar informação de chuva se disponível
         const rainInfo = precipitation_probability_max
           ? `<p style="font-size: 0.75rem; color: #4a90e2; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 3px;">
-            💧 <span>${precipitation_probability_max[index] || 0}%</span>
+            <i class="ph-fill ph-drop" style="font-size:0.8rem;"></i> <span>${precipitation_probability_max[index] || 0}%</span>
           </p>`
           : "";
 
         const rainAmount = precipitation_sum
-          ? `<p style="font-size: 0.7rem; color: #718096; margin-top: 1px;">
-            🌧️ ${precipitation_sum[index] || 0}mm
+          ? `<p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; display:flex; align-items:center; justify-content:center; gap:3px;">
+            <i class="ph-fill ph-cloud-rain" style="font-size:0.8rem;"></i> ${precipitation_sum[index] || 0}mm
           </p>`
           : "";
 
@@ -410,8 +478,8 @@ const UI = {
           weatherInfo.icon
         }</span>
           <div class="forecast-temps">
-            <span class="temp-max">${maxTemp}°</span>
-            <span class="temp-min">${minTemp}°</span>
+            <span class="temp-max">${maxTemp}</span>
+            <span class="temp-min">${minTemp}</span>
           </div>
           ${rainInfo}
           ${rainAmount}
@@ -518,7 +586,7 @@ const UI = {
       this.elements.temperature.textContent = Utils.formatTemperature(
         data.weather.temperature_2m
       );
-      this.elements.weatherIcon.textContent = Utils.getWeatherInfo(
+      this.elements.weatherIcon.innerHTML = Utils.getWeatherInfo(
         data.weather.weather_code
       ).icon;
       this.elements.weatherDesc.textContent = Utils.getWeatherInfo(
