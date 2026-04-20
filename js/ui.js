@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+
 // ========================================
 // MANIPULAÇÃO DA INTERFACE DO USUÁRIO - VERSÃO COMPLETA E CORRIGIDA
 // ========================================
@@ -126,9 +128,9 @@ const UI = {
   updateThemeIcon(theme) {
     if (!this.elements.themeToggle) return;
     if (theme === "dark") {
-      this.elements.themeToggle.innerHTML = '<i class="ph-fill ph-sun"></i>';
+      this.elements.themeToggle.innerHTML = DOMPurify.sanitize('<i class="ph-fill ph-sun"></i>');
     } else {
-      this.elements.themeToggle.innerHTML = '<i class="ph-fill ph-moon"></i>';
+      this.elements.themeToggle.innerHTML = DOMPurify.sanitize('<i class="ph-fill ph-moon"></i>');
     }
   },
 
@@ -208,7 +210,7 @@ const UI = {
       )
       .join("");
 
-    this.elements.autocomplete.innerHTML = html;
+    this.elements.autocomplete.innerHTML = DOMPurify.sanitize(html);
     this.elements.autocomplete.classList.remove("hidden");
     this.currentSuggestionIndex = -1;
 
@@ -335,7 +337,7 @@ const UI = {
     this.elements.country.textContent = processed.location.country;
 
     // Update main weather
-    this.elements.weatherIcon.innerHTML = processed.description.icon;
+    this.elements.weatherIcon.innerHTML = DOMPurify.sanitize(processed.description.icon);
     this.elements.temperature.textContent = processed.formatted.temperature;
     this.elements.weatherDesc.textContent = processed.description.text;
     this.elements.feelsLike.textContent = `Sensação: ${processed.formatted.feelsLike}`;
@@ -361,8 +363,9 @@ const UI = {
         "❌ Forecast não encontrado ou sem dados:",
         processed.forecast
       );
-      this.elements.forecastContainer.innerHTML =
-        '<p style="text-align: center; color: #718096;">Previsão não disponível para esta localização</p>';
+      this.elements.forecastContainer.innerHTML = DOMPurify.sanitize(
+        '<p style="text-align: center; color: #718096;">Previsão não disponível para esta localização</p>'
+      );
     }
 
     this.elements.weatherCard.classList.remove("hidden");
@@ -377,29 +380,33 @@ const UI = {
 
     if (!forecast) {
       console.error("❌ Forecast é null/undefined");
-      this.elements.forecastContainer.innerHTML =
-        '<p style="text-align: center; color: #718096;">Dados de previsão indisponíveis</p>';
+      this.elements.forecastContainer.innerHTML = DOMPurify.sanitize(
+        '<p style="text-align: center; color: #718096;">Dados de previsão indisponíveis</p>'
+      );
       return;
     }
 
     if (!forecast.time) {
       console.error("❌ Forecast não tem propriedade 'time':", forecast);
-      this.elements.forecastContainer.innerHTML =
-        '<p style="text-align: center; color: #718096;">Dados de previsão incompletos</p>';
+      this.elements.forecastContainer.innerHTML = DOMPurify.sanitize(
+        '<p style="text-align: center; color: #718096;">Dados de previsão incompletos</p>'
+      );
       return;
     }
 
     if (!Array.isArray(forecast.time)) {
       console.error("❌ Forecast.time não é um array:", typeof forecast.time);
-      this.elements.forecastContainer.innerHTML =
-        '<p style="text-align: center; color: #718096;">Formato de dados inválido</p>';
+      this.elements.forecastContainer.innerHTML = DOMPurify.sanitize(
+        '<p style="text-align: center; color: #718096;">Formato de dados inválido</p>'
+      );
       return;
     }
 
     if (forecast.time.length === 0) {
       console.error("❌ Forecast.time está vazio");
-      this.elements.forecastContainer.innerHTML =
-        '<p style="text-align: center; color: #718096;">Sem dados de previsão disponíveis</p>';
+      this.elements.forecastContainer.innerHTML = DOMPurify.sanitize(
+        '<p style="text-align: center; color: #718096;">Sem dados de previsão disponíveis</p>'
+      );
       return;
     }
 
@@ -419,8 +426,9 @@ const UI = {
         temperature_2m_min: !!temperature_2m_min,
         weather_code: !!weather_code,
       });
-      this.elements.forecastContainer.innerHTML =
-        '<p style="text-align: center; color: #718096;">Dados de previsão incompletos</p>';
+      this.elements.forecastContainer.innerHTML = DOMPurify.sanitize(
+        '<p style="text-align: center; color: #718096;">Dados de previsão incompletos</p>'
+      );
       return;
     }
 
@@ -488,7 +496,7 @@ const UI = {
       })
       .join("");
 
-    this.elements.forecastContainer.innerHTML = forecastHTML;
+    this.elements.forecastContainer.innerHTML = DOMPurify.sanitize(forecastHTML);
 
     // Adicionar evento de hover para mostrar informações extras
     this.addForecastTooltips();
@@ -586,9 +594,9 @@ const UI = {
       this.elements.temperature.textContent = Utils.formatTemperature(
         data.weather.temperature_2m
       );
-      this.elements.weatherIcon.innerHTML = Utils.getWeatherInfo(
-        data.weather.weather_code
-      ).icon;
+      this.elements.weatherIcon.innerHTML = DOMPurify.sanitize(
+        Utils.getWeatherInfo(data.weather.weather_code).icon
+      );
       this.elements.weatherDesc.textContent = Utils.getWeatherInfo(
         data.weather.weather_code
       ).desc;

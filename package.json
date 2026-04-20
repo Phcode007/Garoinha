@@ -1,0 +1,14 @@
+{
+  "name": "garoinha",
+  "version": "1.0.0",
+  "description": "Garoinha weather app",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.6.1"
+  },
+  "jest": {
+    "testEnvironment": "jsdom"
+  }
+}

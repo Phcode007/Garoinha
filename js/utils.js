@@ -49,6 +49,11 @@ const Utils = {
    * @returns {string}
    */
   formatTemperature(temp) {
+    if (window.WeatherUtils && typeof window.WeatherUtils.formatTemperature === 'function') {
+      return window.WeatherUtils.formatTemperature(temp);
+    }
+
+    // Fallback (compatibilidade)
     const unit = window.Storage && window.Storage.getUnit ? window.Storage.getUnit() : 'C';
     let finalTemp = temp;
     if (unit === 'F') {
@@ -63,6 +68,9 @@ const Utils = {
    * @returns {string}
    */
   formatWindSpeed(speed) {
+    if (window.WeatherUtils && typeof window.WeatherUtils.formatWindSpeed === 'function') {
+      return window.WeatherUtils.formatWindSpeed(speed);
+    }
     return `${Math.round(speed)} km/h`;
   },
 
@@ -72,6 +80,9 @@ const Utils = {
    * @returns {string}
    */
   formatHumidity(humidity) {
+    if (window.WeatherUtils && typeof window.WeatherUtils.formatHumidity === 'function') {
+      return window.WeatherUtils.formatHumidity(humidity);
+    }
     return `${Math.round(humidity)}%`;
   },
 
@@ -81,6 +92,9 @@ const Utils = {
    * @returns {string}
    */
   formatPressure(pressure) {
+    if (window.WeatherUtils && typeof window.WeatherUtils.formatPressure === 'function') {
+      return window.WeatherUtils.formatPressure(pressure);
+    }
     return `${Math.round(pressure)} hPa`;
   },
 
@@ -90,6 +104,9 @@ const Utils = {
    * @returns {string}
    */
   formatCloudCover(cloudCover) {
+    if (window.WeatherUtils && typeof window.WeatherUtils.formatCloudCover === 'function') {
+      return window.WeatherUtils.formatCloudCover(cloudCover);
+    }
     return `${Math.round(cloudCover)}%`;
   },
 
@@ -99,6 +116,10 @@ const Utils = {
    * @returns {string}
    */
   getWindDirection(degrees) {
+    if (window.WeatherUtils && typeof window.WeatherUtils.getWindDirection === 'function') {
+      return window.WeatherUtils.getWindDirection(degrees);
+    }
+
     const directions = Object.keys(WIND_DIRECTIONS)
       .map(Number)
       .sort((a, b) => a - b);
@@ -125,6 +146,10 @@ const Utils = {
    * @returns {Object}
    */
   getWeatherInfo(code) {
+    if (window.WeatherUtils && typeof window.WeatherUtils.getWeatherInfo === 'function') {
+      return window.WeatherUtils.getWeatherInfo(code);
+    }
+
     return (
       WEATHER_CODES[code] || {
         desc: "Desconhecido",
